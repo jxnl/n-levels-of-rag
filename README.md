@@ -351,3 +351,13 @@ Capabilites could be more like:
 There are all things you'll likely find as you cluster and explore the datasets.
 
 ### To be continued
+
+Other topics yet to be covered:
+
+1. Finding segments and routing
+2. Processing Tables
+3. Processing Images
+4. Building up timeline queries.
+5. Adding additional metadata.
+6. Summarization and Summary Indices
+7. Modeling business outcomes
