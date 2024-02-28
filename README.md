@@ -1,16 +1,20 @@
 # Levels of Complexity: RAG Applications
 
-The goal of this repository is to go over different levels of complexity with an RAG application. These are my loose notes as I build out this repository.
+In summary, this repository serves as a comprehensive guide to understanding and implementing RAG applications across different levels of complexity. Whether you're a beginner eager to learn the basics or an experienced developer looking to deepen your expertise, you'll find valuable insights and practical knowledge to help you on your journey. Let's embark on this exciting exploration together and unlock the full potential of RAG applications.
 
 ## Level 1: The Basics
 
-1. Recursively traverses file system to generate text.
-2. Simple generator to chunk text.
-3. Generator that batches requests and sends it to an embedding API using asyncio
-4. Save data to LanceDB
-5. CLI to ask a question, embed question, yield chunks and generate response
+Welcome to the foundational level of RAG applications! Here, we'll start with the basics, laying the groundwork for your journey into the realm of Retrieval-Augmented Generation. This level is designed to introduce you to the core concepts and techniques essential for working with RAG models. By the end of this section, you'll have a solid understanding of how to traverse file systems for text generation, chunk and batch text for processing, and interact with embedding APIs. Let's dive in and explore the exciting capabilities of RAG applications together!
+
+
+1. Recursively traverse the file system to generate text.
+2. Utilize a generator for text chunking.
+3. Employ a generator to batch requests and asynchronously send them to an embedding API.
+4. Store data in LanceDB.
+5. Implement a CLI for querying, embedding questions, yielding text chunks, and generating responses.
 
 ### Processing Pipeline
+
 
 ```python
 from dataclasses import dataclass
@@ -113,7 +117,13 @@ if __name__ == "__main__":
 
 ## Level 2 Structure RAG Application
 
-Step 2 is introducing more structure in the inputs and the outputs of your model, allowing for some more complexity in the entire pipeline.
+## Level 2: Advanced Techniques
+
+Here we delve deeper into the world of Retrieval-Augmented Generation (RAG) applications. This level is designed for those who have grasped the basics and are ready to explore more advanced techniques and optimizations. Here, we focus on enhancing the efficiency and effectiveness of our RAG applications through better asynchronous programming, improved chunking strategies, and robust retry mechanisms in processing pipelines. 
+
+In the search pipeline, we introduce sophisticated methods such as better ranking algorithms, query expansion and rewriting, and executing parallel queries to elevate the quality and relevance of search results. 
+
+Furthermore, the answering pipeline is refined to provide more structured and informative responses, including citing specific text chunks and employing a streaming response model for better interaction.
 
 ### Processing
 
@@ -208,7 +218,11 @@ if __name__ == "__main__":
 
 ## Level 3: Observability
 
-Level 3 is when you should start thinking about observing and measuring the different aspects of your application. You want to have various logs that can help you identify bottlenecks and issues in your application. Here are some logs that you'll find very useful.
+At Level 3, the focus shifts towards the critical practice of observability. This stage emphasizes the importance of implementing comprehensive logging mechanisms to monitor and measure the multifaceted performance of your application. Establishing robust observability allows you to swiftly pinpoint and address any bottlenecks or issues, ensuring optimal functionality. Below, we outline several key types of logs that are instrumental in achieving this goal.
+
+### Expanding on Wide Event Tracking
+
+Wide event tracking
 
 - [Do it wide](https://isburmistrov.substack.com/p/all-you-need-is-wide-events-not-metrics?utm_source=tldrwebdev)
 
@@ -273,18 +287,17 @@ Just by building up some simple dashboards that are grouped by these attributes 
 
 By this point you should definitely be having users. You've already set yourself for success by understanding queries, rewriting them, and monitoring how users are actually using your system. The next couple of steps will be around improving specific metrics and also different ways of doing that.
 
-## Level 4: Evals
+## Level 4: Evaluations
 
-I think for the most part there are two separate systems, the search system and the question answering system. Many people evaluate the question answering system without evaluating the search system.
+Evaluations at this stage are crucial for understanding the performance and effectiveness of our systems. Primarily, we are dealing with two distinct systems: the search system and the question answering (QA) system. It's common to see a lot of focus on evaluating the QA system, given its direct interaction with the end-user's queries. However, it's equally important to not overlook the search system. The search system acts as the backbone, fetching relevant information upon which the QA system builds its answers. A comprehensive evaluation strategy should include both systems, assessing them individually and how well they integrate and complement each other in providing accurate, relevant answers to the user's queries.
 
 ### Evaluating the Search System
 
-The goal here should be focusing on things like precision and recall at K. Since you've already logged all the citation data, you can easily use a language model to help you evaluate the search system.
+The aim here is to enhance our focus on key metrics such as precision and recall at various levels (K). With the comprehensive logging of all citation data, we have a solid foundation to employ a language model for an in-depth evaluation of the search system's efficacy.
 
-If you don't have enough data for that, you can also always use synthetic data. We can take random text chunks or random documents. I ask the language model to generate questions and at least verify that the search system can identify the text chunks that would generate these questions.
+For instances where the dataset might be limited, turning to synthetic data is a practical approach. This method involves selecting random text chunks or documents and then prompting a language model to generate questions that these texts could answer. This process is crucial for verifying the search system's ability to accurately identify and retrieve the text chunks responsible for generating these questions.
 
 ```python
-
 def test():
     text_chunk = sample_text_chunk()
     questions = ask_ai(f"generate questions that could be ansered by {text_chunk.text}")
@@ -352,14 +365,26 @@ Capabilites could be more like:
 
 There are all things you'll likely find as you cluster and explore the datasets.
 
-### To be continued
+### Upcoming Topics
 
-Other topics yet to be covered:
+As we continue to explore the depths of RAG applications, the following areas will be addressed in subsequent levels, each designed to enhance the complexity and functionality of your RAG systems:
 
-1. Finding segments and routing
-2. Processing Tables
-3. Processing Images
-4. Building up timeline queries.
-5. Adding additional metadata.
-6. Summarization and Summary Indices
-7. Modeling business outcomes
+
+#### Level 6: Advanced Data Handling
+
+- Finding Segments and Routing: Techniques for identifying and directing data segments efficiently.
+- Processing Tables: Strategies for interpreting and manipulating tabular data.
+- Processing Images: Methods for incorporating image data into RAG applications.
+
+#### Level 7: Query Enhancement
+
+- Building Up Timeline Queries: Crafting queries that span across different timeframes for dynamic data analysis.
+- Adding Additional Metadata: Leveraging metadata to enrich query context and improve response accuracy.
+
+#### Level 8: Summarization Techniques
+
+- Summarization and Summary Indices: Developing concise summaries from extensive datasets to aid quick insights.
+
+#### Level 9: Outcome Modeling
+
+- Modeling Business Outcomes: Applying RAG techniques to predict and model business outcomes, facilitating strategic decision-making.
