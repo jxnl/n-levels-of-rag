@@ -210,6 +210,8 @@ if __name__ == "__main__":
 
 Level 3 is when you should start thinking about observing and measuring the different aspects of your application. You want to have various logs that can help you identify bottlenecks and issues in your application. Here are some logs that you'll find very useful.
 
+- [Do it wide](https://isburmistrov.substack.com/p/all-you-need-is-wide-events-not-metrics?utm_source=tldrwebdev)
+
 ### Log how the queries are being rewritten
 
 1. When addressing a complaint we should quickly understand if the query was written correctly
