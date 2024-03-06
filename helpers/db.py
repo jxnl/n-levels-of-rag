@@ -32,15 +32,14 @@ def chunk_text(
         for chunk_num, start_pos in enumerate(
             range(0, len(doc.text), window_size - overlap)
         ):
-            # Need to insert as a dictionary because if not it'll just insert in a 256 dim vector of zeros
-            yield {
-                "id": id,
-                "doc_id": doc.id,
-                "chunk_num": chunk_num,
-                "start_pos": start_pos,
-                "end_pos": start_pos + window_size,
-                "text": doc.text[start_pos : start_pos + window_size],
-            }
+            yield TextChunk(
+                id=id,
+                doc_id=doc.id,
+                chunk_num=chunk_num,
+                start_pos=start_pos,
+                end_pos=start_pos + window_size,
+                text=doc.text[start_pos : start_pos + window_size],
+            )
             id += 1
 
 
