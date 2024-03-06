@@ -32,14 +32,15 @@ def chunk_text(
         for chunk_num, start_pos in enumerate(
             range(0, len(doc.text), window_size - overlap)
         ):
-            yield TextChunk(
-                id=id,
-                doc_id=doc.id,
-                chunk_num=chunk_num,
-                start_pos=start_pos,
-                end_pos=start_pos + window_size,
-                text=doc.text[start_pos : start_pos + window_size],
-            )
+            # TODO: Fix up this and use a Lance Model instead - have reached out to the team to ask for some help
+            yield {
+                "id": id,
+                "doc_id": doc.id,
+                "chunk_num": chunk_num,
+                "start_pos": start_pos,
+                "end_pos": start_pos + window_size,
+                "text": doc.text[start_pos : start_pos + window_size],
+            }
             id += 1
 
 
