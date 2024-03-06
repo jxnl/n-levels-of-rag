@@ -17,7 +17,7 @@ def create_table(
     return db.create_table(table_name, schema=TextChunk, mode=mode)
 
 
-def read_files(path: Path, file_suffix: str) -> Iterable[Document]:
+def read_file_content(path: Path, file_suffix: str) -> Iterable[Document]:
     for i, file in enumerate(path.iterdir()):
         if file.suffix != file_suffix:
             continue

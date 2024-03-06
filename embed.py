@@ -1,4 +1,4 @@
-from helpers.db import batched, chunk_text, create_db, create_table, read_files
+from helpers.db import batched, chunk_text, create_db, create_table, read_file_content
 import os
 from pathlib import Path
 from tqdm import tqdm
@@ -11,7 +11,7 @@ def main():
     assert "OPENAI_API_KEY" in os.environ, "OPENAI_API_KEY is not set"
     db = create_db(DB_PATH)
     table = create_table(db, "paul_graham", "overwrite")
-    documents = read_files(DATA_PATH, file_suffix=".md")
+    documents = read_file_content(DATA_PATH, file_suffix=".md")
     chunks = chunk_text(documents)
     batched_chunks = batched(chunks, 20)
 
