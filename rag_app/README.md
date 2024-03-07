@@ -1,6 +1,10 @@
 # Introduction
 
-This is a README detailing how to use `rag-app`, a simple cli which can be used to interact with a local lancedb database.
+This is a README detailing how to use `rag-app`, a simple cli which can be used to interact with a local lancedb database. You can install this by running the command
+
+```
+pip3 install -e .
+```
 
 
 # Commands
