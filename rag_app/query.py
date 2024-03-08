@@ -4,12 +4,15 @@ from rag_app.models import TextChunk
 from lancedb import connect
 import textwrap
 from typing import List
+from pathlib import Path
 
 app = typer.Typer()
 
 
 @app.command(help="Query LanceDB for some results")
 def db(db_path: str, table_name: str, query: str, n: int = 3):
+    if not Path(db_path).exists():
+        raise ValueError(f"Database path {db_path} does not exist.")
     db = connect(db_path)
     table = db.open_table(table_name)
 
