@@ -11,33 +11,37 @@ pip3 install -e .
 
 ## Querying the Database
 
-We can use the command `rag-app db query-db <db path> <db table> <query>` in order to query our database. We use the `text-embedding-3` model with a dimensionality of 256 by default.
+We can use the command `rag-app query db <db path> <db table> <query>` in order to query our database. We use the `text-embedding-3` model with a dimensionality of 256 by default.
 
 ```
-(venv) admin@admins-mac-mini n-levels-of-rag % rag-app db query-db "./db" paul_graham "What is the most important thing to consider when working on hard problems?"
-=========================
-Chunk 1
-=========================
-start to get something done.  One of the biggest mistakes ambitious people make is to allow setbacks to destroy their
-morale all at once, like a balloon bursting. You can inoculate yourself against this by explicitly considering setbacks
-a part of your process. Solving hard problems always involves some backtracking.  Doing great work is a depth-first
-search whose root node is the desire to. So "If at first you don't succeed, try, try again" isn't quite right. It should
-be: If at first you don't succeed, either try again, or backtrack and then try again.  "Never give up" is also not quite
-right. Obviously there are times when it's the right choice to eject. A more precise version would be: Never let
-setbacks panic you into backtracking more than you need to. Corollary: Never abandon the root node.  It's not
-necessarily a bad sign if work is a struggle, any more than it's a bad sign to be out of breath while running. It
-depends how fast you're running. So learn to distinguish good pain from bad. Good pain is a
-=========================
-Chunk 2
-=========================
-if there's an important but overlooked problem in your neighborhood, it's probably already on your subconscious radar
-screen. So try asking yourself: if you were going to take a break from "serious" work to work on something just because
-it would be really interesting, what would you do? The answer is probably more important than it seems.  Originality in
-choosing problems seems to matter even more than originality in solving them. That's what distinguishes the people who
-discover whole new fields. So what might seem to be merely the initial step — deciding what to work on — is in a sense
-the key to the whole game.  Few grasp this. One of the biggest misconceptions about new ideas is about the ratio of
-question to answer in their composition. People think big ideas are answers, but often the real insight was in the
-question.  Part of the reason we underrate questions is the way they're used in schools. In schools they tend to exist
-only briefly before being answered, like unstable particles. But a really good
-=========================
+>> rag-app query db ./db paul_graham "What's the biggest challenge facing any startup"                                                             
+┏━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃            ┃                                                                                                                            ┃
+┃  Chunk ID  ┃  Result                                                                                                                    ┃
+┃            ┃                                                                                                                            ┃
+┣━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃            ┃                                                                                                                            ┃
+┃  57        ┃  o ideas fit together like two puzzle pieces.  How do you get from starting small to doing something great? By making      ┃
+┃            ┃  successive versions. Great things are almost always made in successive versions. You start with something small and       ┃
+┃            ┃  evolve it, and the final version is both cleverer and more ambitious than anything you could have planned.  It's          ┃
+┃            ┃  particularly useful to make successive versions when you're making something for people — to get an initial version in    ┃
+┃            ┃  front of them quickly, and then evolve it based on their response.  Begin by trying the simplest thing that could         ┃
+┃            ┃  possibly work. Surprisingly often, it does. If it doesn't, this will at least get you started.  Don't try to cram too     ┃
+┃            ┃  much new stuff into any one version. There are names for doing this with the first version (taking too long to ship) and  ┃
+┃            ┃  the second (the second system effect), but these are both merely instances of a more general principle.  An early         ┃
+┃            ┃  version of a new project will sometimes be dismissed as a toy. It's a good sign when people                               ┃
+┃            ┃                                                                                                                            ┃
+┣━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃            ┃                                                                                                                            ┃
+┃  17        ┃  fields where you have to be independent-minded to succeed — where your ideas have to be not just correct, but novel as    ┃
+┃            ┃  well.  This is obviously the case in science. You can't publish papers saying things that other people have already       ┃
+┃            ┃  said. But it's just as true in investing, for example. It's only useful to believe that a company will do well if most    ┃
+┃            ┃  other investors don't; if everyone else thinks the company will do well, then its stock price will already reflect that,  ┃
+┃            ┃  and there's no room to make money.  What else can we learn from these fields? In all of them you have to put in the       ┃
+┃            ┃  initial effort. Superlinear returns seem small at first. At this rate, you find yourself thinking, I'll never get         ┃
+┃            ┃  anywhere. But because the reward curve rises so steeply at the far end, it's worth taking extraordinary measures to get   ┃
+┃            ┃  there.  In the startup world, the name for this principle is "do things that don't scale." If you pay a ridiculous        ┃
+┃            ┃  amount of attention to your tiny initial set of customers, ideally you'll kick off e                                      ┃
+┃            ┃                                                                                                                            ┃
+┣━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
 ```

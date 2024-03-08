@@ -9,11 +9,7 @@ app = typer.Typer()
 
 
 @app.command(help="Query LanceDB for some results")
-def query_db(
-    db_path: str,
-    table_name: str,
-    query: str,
-):
+def db(db_path: str, table_name: str, query: str, n: int = 3):
     db = connect(db_path)
     table = db.open_table(table_name)
 
@@ -27,12 +23,20 @@ def query_db(
     )
 
     results: List[TextChunk] = (
-        table.search(query_vector).limit(2).to_pydantic(TextChunk)
+        table.search(query_vector).limit(n).to_pydantic(TextChunk)
     )
 
-    print("=========================")
-    for idx, result in enumerate(results):
-        print(f"Chunk {idx+1}")
-        print("=========================")
-        print(textwrap.fill(result.text, width=120))
-        print("=========================")
+    from rich.console import Console
+    from rich.table import Table
+    from rich import box
+
+    console = Console()
+
+    table = Table(title="Results", box=box.HEAVY, padding=(1, 2), show_lines=True)
+    table.add_column("Chunk ID", style="cyan", no_wrap=True)
+    table.add_column("Result", style="magenta")
+
+    for result in results:
+        table.add_row(str(result.id), textwrap.fill(result.text, width=120))
+
+    console.print(table)

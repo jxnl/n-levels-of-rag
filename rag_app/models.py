@@ -12,4 +12,4 @@ class TextChunk(LanceModel):
     end_pos: int
     text: str = openai.SourceField()
     # For some reason if we call openai.ndim(), it returns 1536 instead of 256 like we want
-    vector: Vector(256) = openai.VectorField(default=None)
+    vector: Vector(openai.ndims()) = openai.VectorField(default=None)
