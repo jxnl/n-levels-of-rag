@@ -81,8 +81,8 @@ def main():
     chunks = chunk_text(documents)
     batched_chunks = batch_chunks(chunks, 20)
 
-    for chunks in tqdm(batched_chunks):
-        table.add(chunks)
+    for chunk_batch in tqdm(batched_chunks):
+        table.add(chunk_batch)
 
 
 if __name__ == "__main__":

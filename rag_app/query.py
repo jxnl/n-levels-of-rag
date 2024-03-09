@@ -13,7 +13,12 @@ app = typer.Typer()
 
 
 @app.command(help="Query LanceDB for some results")
-def db(db_path: str, table_name: str, query: str, n: int = 3):
+def db(
+    db_path: str = typer.Option(help="Your LanceDB path"),
+    table_name: str = typer.Option(help="Table to ingest data into"),
+    query: str = typer.Option(help="Text to query against existing vector db chunks"),
+    n: int = typer.Option(default=3, help="Maximum number of chunks to return"),
+):
     if not Path(db_path).exists():
         raise ValueError(f"Database path {db_path} does not exist.")
     db = connect(db_path)
