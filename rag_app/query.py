@@ -5,6 +5,9 @@ from lancedb import connect
 import textwrap
 from typing import List
 from pathlib import Path
+from rich.console import Console
+from rich.table import Table
+from rich import box
 
 app = typer.Typer()
 
@@ -29,12 +32,6 @@ def db(db_path: str, table_name: str, query: str, n: int = 3):
         table.search(query_vector).limit(n).to_pydantic(TextChunk)
     )
 
-    from rich.console import Console
-    from rich.table import Table
-    from rich import box
-
-    console = Console()
-
     table = Table(title="Results", box=box.HEAVY, padding=(1, 2), show_lines=True)
     table.add_column("Chunk ID", style="cyan", no_wrap=True)
     table.add_column("Result", style="magenta")
@@ -42,4 +39,4 @@ def db(db_path: str, table_name: str, query: str, n: int = 3):
     for result in results:
         table.add_row(str(result.id), textwrap.fill(result.text, width=120))
 
-    console.print(table)
+    Console().print(table)
