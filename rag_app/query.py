@@ -38,10 +38,17 @@ def db(
     )
 
     table = Table(title="Results", box=box.HEAVY, padding=(1, 2), show_lines=True)
-    table.add_column("Chunk ID", style="cyan", no_wrap=True)
     table.add_column("Result", style="magenta")
+    table.add_column("Post Title", style="green")
+    table.add_column("Chunk Number", style="yellow")
+    table.add_column("Publish Date", style="blue")
 
     for result in results:
-        table.add_row(str(result.id), textwrap.fill(result.text, width=120))
-
+        chunk_number = f"{result.chunk_id}/{result.post_chunk_count}"
+        table.add_row(
+            textwrap.fill(result.text, width=120),
+            f"{result.post_title}\n({result.source})",
+            chunk_number,
+            result.publish_date.strftime("%Y-%m-%d"),
+        )
     Console().print(table)
