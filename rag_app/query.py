@@ -36,7 +36,7 @@ def db(
     results: List[TextChunk] = (
         table.search(query_vector).limit(n).to_pydantic(TextChunk)
     )
-
+    
     table = Table(title="Results", box=box.HEAVY, padding=(1, 2), show_lines=True)
     table.add_column("Post Title", style="green", max_width=30)
     table.add_column("Content", style="magenta", max_width=120)
@@ -44,7 +44,7 @@ def db(
     table.add_column("Publish Date", style="blue")
 
     for result in results:
-        chunk_number = f"{result.chunk_id}/{result.post_chunk_count}"
+        chunk_number = f"{result.chunk_id}"
         table.add_row(
             f"{result.post_title}({result.source})",
             result.text,

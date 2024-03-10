@@ -42,38 +42,17 @@ def chunk_text(
     documents: Iterable[Document], window_size: int = 1024, overlap: int = 0
 ):
     for doc in documents:
-        assert doc.metadata[
-            "date"
-        ], "A valid date must be provided in the metadata of the markdown file to ingest."
-        try:
-            doc_publish_date = datetime.strptime(doc.metadata["date"], "%Y-%m")
-        except ValueError:
-            raise ValueError(
-                f"Date format must be YYYY-MM (Eg. 2024-10). Unable to parse provided date of {doc.metadata['date']} "
-            )
-
         for chunk_num, start_pos in enumerate(
             range(0, len(doc.content), window_size - overlap)
         ):
             yield {
                 "doc_id": doc.id,
-                "chunk_id": chunk_num,
+                "chunk_id": chunk_num+1,
                 "text": doc.content[start_pos : start_pos + window_size],
                 "post_title": doc.metadata["title"],
-                "publish_date": doc_publish_date,
+                "publish_date": datetime.strptime(doc.metadata["date"], "%Y-%m"),
                 "source": doc.metadata["url"],
             }
-
-
-def populate_chunks_with_counts(chunks: Iterable[TextChunk]):
-    counts = defaultdict(list)
-
-    for chunk in chunks:
-        counts[chunk["doc_id"]].append(chunk)
-
-    for doc in counts.keys():
-        for chunk in counts[doc]:
-            yield {**chunk, "post_chunk_count": len(counts[doc])}
 
 
 @app.command(help="Ingest data into a given lancedb")
@@ -96,7 +75,6 @@ def from_folder(
 
     files = read_files(path, file_suffix)
     chunks = chunk_text(files)
-    chunks = populate_chunks_with_counts(chunks)
     batched_chunks = batch_chunks(chunks)
 
     ttl = 0
