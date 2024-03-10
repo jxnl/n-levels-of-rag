@@ -42,16 +42,25 @@ def chunk_text(
     documents: Iterable[Document], window_size: int = 1024, overlap: int = 0
 ):
     for doc in documents:
+        assert doc.metadata[
+            "date"
+        ], "A valid date must be provided in the metadata of the markdown file to ingest."
+        try:
+            doc_publish_date = datetime.strptime(doc.metadata["date"], "%Y-%m")
+        except ValueError:
+            raise ValueError(
+                f"Date format must be YYYY-MM (Eg. 2024-10). Unable to parse provided date of {doc.metadata['date']} "
+            )
+
         for chunk_num, start_pos in enumerate(
             range(0, len(doc.content), window_size - overlap)
         ):
-            # TODO: Fix up this and use a Lance Model instead - have reached out to the team to ask for some help
             yield {
                 "doc_id": doc.id,
                 "chunk_id": chunk_num,
                 "text": doc.content[start_pos : start_pos + window_size],
                 "post_title": doc.metadata["title"],
-                "publish_date": datetime.strptime(doc.metadata["date"], "%Y-%m"),
+                "publish_date": doc_publish_date,
                 "source": doc.metadata["url"],
             }
 
