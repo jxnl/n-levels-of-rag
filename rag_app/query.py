@@ -49,6 +49,6 @@ def db(
             textwrap.fill(result.text, width=120),
             f"{result.post_title}\n({result.source})",
             chunk_number,
-            result.publish_date.strftime("%Y-%m-%d"),
+            result.publish_date.strftime("%Y-%m"),
         )
     Console().print(table)
