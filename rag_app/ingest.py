@@ -5,6 +5,10 @@ from pathlib import Path
 from typing import Iterable
 from tqdm import tqdm
 from rich import print
+import frontmatter
+import hashlib
+from datetime import datetime
+from collections import defaultdict
 
 app = typer.Typer()
 
@@ -13,7 +17,13 @@ def read_files(path: Path, file_suffix: str) -> Iterable[Document]:
     for i, file in enumerate(path.iterdir()):
         if file.suffix != file_suffix:
             continue
-        yield Document(id=i, text=file.read_text(), filename=file.name)
+        post = frontmatter.load(file)
+        yield Document(
+            id=hashlib.md5(post.content.encode("utf-8")).hexdigest(),
+            content=post.content,
+            filename=file.name,
+            metadata=post.metadata,
+        )
 
 
 def batch_chunks(chunks, batch_size=20):
@@ -31,21 +41,18 @@ def batch_chunks(chunks, batch_size=20):
 def chunk_text(
     documents: Iterable[Document], window_size: int = 1024, overlap: int = 0
 ):
-    id = 0
     for doc in documents:
         for chunk_num, start_pos in enumerate(
-            range(0, len(doc.text), window_size - overlap)
+            range(0, len(doc.content), window_size - overlap)
         ):
-            # TODO: Fix up this and use a Lance Model instead - have reached out to the team to ask for some help
             yield {
-                "id": id,
                 "doc_id": doc.id,
-                "chunk_num": chunk_num,
-                "start_pos": start_pos,
-                "end_pos": start_pos + window_size,
-                "text": doc.text[start_pos : start_pos + window_size],
+                "chunk_id": chunk_num+1,
+                "text": doc.content[start_pos : start_pos + window_size],
+                "post_title": doc.metadata["title"],
+                "publish_date": datetime.strptime(doc.metadata["date"], "%Y-%m"),
+                "source": doc.metadata["url"],
             }
-            id += 1
 
 
 @app.command(help="Ingest data into a given lancedb")
