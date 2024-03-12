@@ -8,7 +8,7 @@ from rich import print
 import frontmatter
 import hashlib
 from datetime import datetime
-from collections import defaultdict
+from unstructured.partition.text import partition_text
 
 app = typer.Typer()
 
@@ -42,13 +42,11 @@ def chunk_text(
     documents: Iterable[Document], window_size: int = 1024, overlap: int = 0
 ):
     for doc in documents:
-        for chunk_num, start_pos in enumerate(
-            range(0, len(doc.content), window_size - overlap)
-        ):
+        for chunk_num, chunk in enumerate(partition_text(text=doc.content)):
             yield {
                 "doc_id": doc.id,
-                "chunk_id": chunk_num+1,
-                "text": doc.content[start_pos : start_pos + window_size],
+                "chunk_id": chunk_num + 1,
+                "text": chunk.text,
                 "post_title": doc.metadata["title"],
                 "publish_date": datetime.strptime(doc.metadata["date"], "%Y-%m"),
                 "source": doc.metadata["url"],
