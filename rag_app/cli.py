@@ -1,6 +1,7 @@
 import typer
 import rag_app.query as QueryApp
 import rag_app.ingest as IngestApp
+import rag_app.generate as GenerateApp
 
 app = typer.Typer(
     name="Rag-App",
@@ -16,4 +17,9 @@ app.add_typer(
     IngestApp.app,
     name="ingest",
     help="Commands to help ingest data into your local lancedb instance",
+)
+app.add_typer(
+    GenerateApp.app,
+    name="generate",
+    help="Commands to help generate synthethic data from your documents",
 )

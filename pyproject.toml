@@ -14,7 +14,8 @@ tqdm = "^4.66.2"
 rich = "^13.6.0"
 python-frontmatter = "^1.1.0"
 duckdb="0.10.0"
-unstructured="0.12.6"
+unstructured="^0.12.6"
+instructor="^0.6.4"
 
 [tool.poetry.dev-dependencies]
 
