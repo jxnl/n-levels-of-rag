@@ -3,8 +3,13 @@ from pathlib import Path
 from rag_app.src.chunking import read_files, chunk_text
 from pydantic import BaseModel, Field
 from instructor import patch
-from openai import OpenAI
-from tqdm import tqdm
+from openai import AsyncOpenAI
+import tqdm
+import asyncio
+from rag_app.models import TextChunk
+import json
+from tenacity import retry, stop_after_attempt, wait_fixed
+
 
 app = typer.Typer()
 
@@ -16,20 +21,23 @@ class QuestionAnswerPair(BaseModel):
     was derived from the question.
     """
 
+    chain_of_thought: str = Field(
+        ..., description="The reasoning process leading to the answer."
+    )
     question: str = Field(
         ..., description="The generated question from the text chunk."
     )
     answer: str = Field(..., description="The answer to the generated question.")
-    chain_of_thought: str = Field(
-        ..., description="The reasoning process leading to the answer."
-    )
 
 
-client = patch(OpenAI())
+client = patch(AsyncOpenAI())
 
 
-def generate_question_answer_pair(chunk: str) -> QuestionAnswerPair:
-    question_answer = client.chat.completions.create(
+@retry(stop=stop_after_attempt(5), wait=wait_fixed(30))
+async def generate_question_answer_pair(
+    chunk: TextChunk,
+) -> tuple[QuestionAnswerPair, TextChunk]:
+    res = await client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
             {
@@ -43,32 +51,40 @@ def generate_question_answer_pair(chunk: str) -> QuestionAnswerPair:
         ],
         response_model=QuestionAnswerPair,
     )
-    return question_answer
+    return (res, chunk)
+
+
+async def gather_questions(chunks):
+    coros = [generate_question_answer_pair(chunk) for chunk in chunks]
+    output = []
+    for response in tqdm.asyncio.tqdm_asyncio.as_completed(coros):
+        questionAnswer, chunkData = await response
+        assert isinstance(chunkData, TextChunk)
+        assert isinstance(questionAnswer, QuestionAnswerPair)
+        output.append(
+            {
+                "question": questionAnswer.question,
+                "answer": questionAnswer.answer,
+                "chunk": chunkData.text,
+                "chunk_id": chunkData.chunk_id,
+            }
+        )
+    return output
 
 
 @app.command(help="Generate questions for each chunk in a given file")
-def questions(
+def synthethic_questions(
     folder_path: str = typer.Option(help="Folder to read data from"),
     max_questions: int = typer.Option(
-        help="max number of question/answer pairs to generate", default=10
+        help="max number of question/answer pairs to generate", default=-1
     ),
 ):
     file = read_files(Path(folder_path), file_suffix=".md")
     chunks = chunk_text(file)
+    chunks = [TextChunk(**chunk) for chunk in chunks]
+    if max_questions > 0:
+        chunks = chunks[:max_questions]
 
-    import json
-
-    output = []
-    for idx, chunk in tqdm(enumerate(chunks), total=max_questions):
-        if idx == max_questions:
-            break
-        response = generate_question_answer_pair(chunk["text"])
-        output.append(
-            {
-                "question": response.question,
-                "answer": response.answer,
-                "chunk": chunk["text"],
-            }
-        )
+    output = asyncio.run(gather_questions(chunks))
     with open("output.json", "w") as f:
         json.dump(output, f, indent=2)

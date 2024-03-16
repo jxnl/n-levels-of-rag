@@ -15,9 +15,13 @@ rich = "^13.6.0"
 python-frontmatter = "^1.1.0"
 duckdb="0.10.0"
 unstructured="^0.12.6"
+pandas="2.2.1"
 instructor="^0.6.4"
+tenacity="^8.2.3"
 
 [tool.poetry.dev-dependencies]
+pytest = "^7.1.2"
+lancedb = "^0.6.1"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

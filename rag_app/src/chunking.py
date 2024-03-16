@@ -8,13 +8,17 @@ from typing import Iterable
 from pathlib import Path
 
 
+def generate_string_hash(s: str):
+    return hashlib.md5(s.encode("utf-8")).hexdigest()
+
+
 def read_files(path: Path, file_suffix: str) -> Iterable[Document]:
-    for i, file in enumerate(path.iterdir()):
+    for file in path.iterdir():
         if file.suffix != file_suffix:
             continue
         post = frontmatter.load(file)
         yield Document(
-            id=hashlib.md5(post.content.encode("utf-8")).hexdigest(),
+            id=generate_string_hash(post.content),
             content=post.content,
             filename=file.name,
             metadata=post.metadata,
@@ -39,8 +43,9 @@ def chunk_text(
     for doc in documents:
         for chunk_num, chunk in enumerate(partition_text(text=doc.content)):
             yield {
+                "chunk_id": generate_string_hash(chunk.text),
+                "chunk_number": chunk_num + 1,
                 "doc_id": doc.id,
-                "chunk_id": chunk_num + 1,
                 "text": chunk.text,
                 "post_title": doc.metadata["title"],
                 "publish_date": datetime.strptime(doc.metadata["date"], "%Y-%m"),

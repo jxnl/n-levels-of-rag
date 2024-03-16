@@ -1,7 +1,7 @@
 import typer
 import rag_app.query as QueryApp
 import rag_app.ingest as IngestApp
-import rag_app.generate as GenerateApp
+import rag_app.generate_synthetic_question as GenerateApp
 
 app = typer.Typer(
     name="Rag-App",
