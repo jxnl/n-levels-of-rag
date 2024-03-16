@@ -3,7 +3,7 @@ from typing import List, Union
 from pydantic import field_validator
 from lancedb.embeddings import get_registry
 from lancedb.pydantic import LanceModel, Vector
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 openai = get_registry().get("openai").create(name="text-embedding-3-large", dim=256)
 
@@ -41,3 +41,26 @@ class Document(BaseModel):
     content: str
     filename: str
     metadata: DocumentMetadata
+
+
+class QuestionAnswerPair(BaseModel):
+    """
+    This model represents a pair of a question generated from a text chunk, its corresponding answer,
+    and the chain of thought leading to the answer. The chain of thought provides insight into how the answer
+    was derived from the question.
+    """
+
+    chain_of_thought: str = Field(
+        ..., description="The reasoning process leading to the answer."
+    )
+    question: str = Field(
+        ..., description="The generated question from the text chunk."
+    )
+    answer: str = Field(..., description="The answer to the generated question.")
+
+
+class EvaluationDataItem(BaseModel):
+    question: str
+    answer: str
+    chunk: str
+    chunk_id: str
