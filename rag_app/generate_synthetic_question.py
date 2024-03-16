@@ -79,9 +79,16 @@ def synthethic_questions(
         help="max number of question/answer pairs to generate", default=-1
     ),
     output_path: str = typer.Option(
-        help="File Path to write output to", default="output.json"
+        help="Json file to write output to", default="output.json"
     ),
 ):
+    assert Path(
+        output_path
+    ).parent.exists(), f"The directory {Path(output_path).parent} does not exist."
+    assert (
+        Path(output_path).suffix == ".json"
+    ), "The output file must have a .json extension."
+
     file = read_files(Path(folder_path), file_suffix=".md")
     chunks = chunk_text(file)
     chunks = [TextChunk(**chunk) for chunk in chunks]
