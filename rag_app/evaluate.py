@@ -6,10 +6,13 @@ from lancedb import connect
 from typing import List
 from openai import AsyncOpenAI
 from pydantic import BaseModel
-import asyncio
-import tqdm
+from tqdm.asyncio import tqdm_asyncio as asyncio
+from rag_app.src.chunking import batch_items
 from tenacity import retry, stop_after_attempt, wait_fixed
-
+from asyncio import run
+from rag_app.models import TextChunk
+from sklearn.metrics import ndcg_score
+import numpy as np
 
 app = typer.Typer()
 
@@ -20,18 +23,9 @@ class EmbeddedEvaluationItem(BaseModel):
     chunk_id: str
 
 
-def batch_queries(
-    queries: List[EvaluationDataItem], batch_size=20
-) -> List[List[EvaluationDataItem]]:
-    batch = []
-    for query in queries:
-        batch.append(query)
-        if len(batch) == batch_size:
-            yield batch
-            batch = []
-
-    if batch:
-        yield batch
+class QueryResult(BaseModel):
+    source: EmbeddedEvaluationItem
+    results: List[TextChunk]
 
 
 @retry(stop=stop_after_attempt(5), wait=wait_fixed(30))
@@ -54,8 +48,24 @@ async def embed_test_queries(
     queries: List[EvaluationDataItem],
 ) -> List[EmbeddedEvaluationItem]:
     client = AsyncOpenAI()
-    batched_queries = batch_queries(queries)
+    batched_queries = batch_items(queries)
     coros = [embed_query(query_batch, client) for query_batch in batched_queries]
+    return await asyncio.gather(*coros)
+
+
+async def fetch_relevant_results(
+    queries: List[EmbeddedEvaluationItem],
+    db_path: str,
+    table_name: str,
+) -> List[QueryResult]:
+    db = connect(db_path)
+    table = db.open_table(table_name)
+
+    async def query_table(query: EmbeddedEvaluationItem):
+        results = table.search(query.embedding).limit(10).to_pydantic(TextChunk)
+        return QueryResult(results=results, source=query)
+
+    coros = [query_table(query) for query in queries]
     return await asyncio.gather(*coros)
 
 
@@ -79,6 +89,27 @@ def from_json(
         data = json.load(file)
         evaluation_data = [EvaluationDataItem(**json.loads(item)) for item in data]
 
-    embedded_queries = asyncio.run(
-        embed_test_queries(evaluation_data, db_path, table_name)
-    )
+    embedded_queries = run(embed_test_queries(evaluation_data))
+    flattened_queries = [item for sublist in embedded_queries for item in sublist]
+
+    query_results = run(fetch_relevant_results(flattened_queries, db_path, table_name))
+
+    for result in query_results:
+        y_pred = np.linspace(1, 0, len(result.results)).tolist()
+
+        y_true = [
+            0 if item.chunk_id != result.source.chunk_id else 1
+            for item in result.results
+        ]
+        ndcg = ndcg_score([y_true], [y_pred])
+
+        target_chunk_id = result.source.chunk_id
+        chunk_ids = [i.chunk_id for i in result.results]
+
+        mrr = (
+            0
+            if target_chunk_id not in chunk_ids
+            else 1 / (chunk_ids.index(target_chunk_id) + 1)
+        )
+
+        print(f"NDCG: {ndcg}, MRR: {mrr}")

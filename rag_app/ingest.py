@@ -4,7 +4,7 @@ from rag_app.models import TextChunk
 from pathlib import Path
 from tqdm import tqdm
 from rich import print
-from rag_app.src.chunking import read_files, batch_chunks, chunk_text
+from rag_app.src.chunking import read_files, batch_items, chunk_text
 
 app = typer.Typer()
 
@@ -29,7 +29,7 @@ def from_folder(
 
     files = read_files(path, file_suffix)
     chunks = chunk_text(files)
-    batched_chunks = batch_chunks(chunks)
+    batched_chunks = batch_items(chunks)
 
     ttl = 0
     for chunk_batch in tqdm(batched_chunks):
