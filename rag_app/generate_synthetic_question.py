@@ -4,8 +4,8 @@ from rag_app.src.chunking import read_files, chunk_text
 from pydantic import BaseModel, Field
 from instructor import patch
 from openai import AsyncOpenAI
-import tqdm
-import asyncio
+from tqdm.asyncio import tqdm_asyncio as asyncio
+from asyncio import run
 from rag_app.models import TextChunk
 import json
 from tenacity import retry, stop_after_attempt, wait_fixed
@@ -57,7 +57,7 @@ async def generate_question_answer_pair(
 async def gather_questions(chunks) -> List[tuple[QuestionAnswerPair, TextChunk]]:
     coros = [generate_question_answer_pair(chunk) for chunk in chunks]
     output = []
-    for response in tqdm.asyncio.tqdm_asyncio.as_completed(coros):
+    for response in asyncio.as_completed(coros):
         questionAnswer, chunkData = await response
         assert isinstance(chunkData, TextChunk)
         assert isinstance(questionAnswer, QuestionAnswerPair)
@@ -95,6 +95,6 @@ def synthethic_questions(
     if max_questions > 0:
         chunks = chunks[:max_questions]
 
-    output = asyncio.run(gather_questions(chunks))
+    output = run(gather_questions(chunks))
     with open(output_path, "w") as f:
         json.dump(output, f, indent=2)

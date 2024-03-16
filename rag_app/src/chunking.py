@@ -47,7 +47,7 @@ def chunk_text(
                 "chunk_number": chunk_num + 1,
                 "doc_id": doc.id,
                 "text": chunk.text,
-                "post_title": doc.metadata["title"],
-                "publish_date": datetime.strptime(doc.metadata["date"], "%Y-%m"),
-                "source": doc.metadata["url"],
+                "post_title": doc.metadata.title,
+                "publish_date": datetime.strptime(doc.metadata.date, "%Y-%m"),
+                "source": doc.metadata.url,
             }
