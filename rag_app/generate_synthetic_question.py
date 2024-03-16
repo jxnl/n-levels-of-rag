@@ -9,7 +9,7 @@ import asyncio
 from rag_app.models import TextChunk
 import json
 from tenacity import retry, stop_after_attempt, wait_fixed
-
+from typing import List
 
 app = typer.Typer()
 
@@ -54,7 +54,7 @@ async def generate_question_answer_pair(
     return (res, chunk)
 
 
-async def gather_questions(chunks):
+async def gather_questions(chunks) -> List[tuple[QuestionAnswerPair, TextChunk]]:
     coros = [generate_question_answer_pair(chunk) for chunk in chunks]
     output = []
     for response in tqdm.asyncio.tqdm_asyncio.as_completed(coros):
@@ -78,6 +78,9 @@ def synthethic_questions(
     max_questions: int = typer.Option(
         help="max number of question/answer pairs to generate", default=-1
     ),
+    output_path: str = typer.Option(
+        help="File Path to write output to", default="output.json"
+    ),
 ):
     file = read_files(Path(folder_path), file_suffix=".md")
     chunks = chunk_text(file)
@@ -86,5 +89,5 @@ def synthethic_questions(
         chunks = chunks[:max_questions]
 
     output = asyncio.run(gather_questions(chunks))
-    with open("output.json", "w") as f:
+    with open(output_path, "w") as f:
         json.dump(output, f, indent=2)
