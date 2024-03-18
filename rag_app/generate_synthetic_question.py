@@ -1,25 +1,15 @@
-
 import typer
 from pathlib import Path
 from rag_app.src.chunking import read_files, chunk_text
-from pydantic import BaseModel, Field
 from instructor import patch
 from openai import AsyncOpenAI
 from tqdm.asyncio import tqdm_asyncio as asyncio
 from asyncio import run
-from rag_app.models import TextChunk
+from rag_app.models import TextChunk, EvaluationDataItem, QuestionAnswerPair
 import json
-from pathlib import Path
 from typing import List
-
-import tqdm
-import typer
-from instructor import patch
-from openai import AsyncOpenAI
 from tenacity import retry, stop_after_attempt, wait_fixed
 
-from rag_app.models import TextChunk, EvaluationDataItem, QuestionAnswerPair
-from rag_app.src.chunking import chunk_text, read_files
 
 app = typer.Typer()
 
@@ -46,9 +36,7 @@ async def generate_question_answer_pair(
     return (res, chunk)
 
 
-async def gather_questions(
-    chunks: TextChunk,
-) -> List[EvaluationDataItem]:
+async def gather_questions(chunks: TextChunk) -> List[EvaluationDataItem]:
     client = patch(AsyncOpenAI())
     coros = [generate_question_answer_pair(client, chunk) for chunk in chunks]
     output = []
@@ -76,15 +64,15 @@ def synthethic_questions(
         help="max number of question/answer pairs to generate", default=-1
     ),
     output_path: str = typer.Option(
-        help="Json file to write output to", default="output.json"
+        help="Json file to write output to", default="output.jsonl"
     ),
 ):
     assert Path(
         output_path
     ).parent.exists(), f"The directory {Path(output_path).parent} does not exist."
     assert (
-        Path(output_path).suffix == ".json"
-    ), "The output file must have a .json extension."
+        Path(output_path).suffix == ".jsonl"
+    ), "The output file must have a .jsonl extension."
 
     file = read_files(Path(folder_path), file_suffix=".md")
     chunks = chunk_text(file)
@@ -92,6 +80,7 @@ def synthethic_questions(
     if max_questions > 0:
         chunks = chunks[:max_questions]
 
-    output = run(gather_questions(chunks))
+    questions = run(gather_questions(chunks))
     with open(output_path, "w") as f:
-        json.dump(output, f, indent=2)
+        for question in questions:
+            f.write(question.model_dump_json() + "\n")

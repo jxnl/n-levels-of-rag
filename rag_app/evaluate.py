@@ -11,10 +11,23 @@ from rag_app.src.chunking import batch_items
 from tenacity import retry, stop_after_attempt, wait_fixed
 from asyncio import run
 from rag_app.models import TextChunk
-from sklearn.metrics import ndcg_score
-import numpy as np
+from rag_app.src.metrics import (
+    calculate_mrr,
+    calculate_ndcg,
+    slice_predictions_decorator,
+)
+import pandas as pd
+from rich.console import Console
+from collections import OrderedDict
 
 app = typer.Typer()
+evals = OrderedDict()
+SIZES = [3, 5, 10, 20]
+for size in SIZES:
+    evals[f"MRR@{size}"] = slice_predictions_decorator(size)(calculate_mrr)
+
+for size in SIZES:
+    evals[f"NDCG@{size}"] = slice_predictions_decorator(size)(calculate_ndcg)
 
 
 class EmbeddedEvaluationItem(BaseModel):
@@ -50,7 +63,8 @@ async def embed_test_queries(
     client = AsyncOpenAI()
     batched_queries = batch_items(queries)
     coros = [embed_query(query_batch, client) for query_batch in batched_queries]
-    return await asyncio.gather(*coros)
+    result = await asyncio.gather(*coros)
+    return [item for sublist in result for item in sublist]
 
 
 async def fetch_relevant_results(
@@ -62,54 +76,48 @@ async def fetch_relevant_results(
     table = db.open_table(table_name)
 
     async def query_table(query: EmbeddedEvaluationItem):
-        results = table.search(query.embedding).limit(10).to_pydantic(TextChunk)
+        results = table.search(query.embedding).limit(25).to_pydantic(TextChunk)
         return QueryResult(results=results, source=query)
 
     coros = [query_table(query) for query in queries]
     return await asyncio.gather(*coros)
 
 
+def score(query: QueryResult) -> dict[str, float]:
+    y_true = query.source.chunk_id
+    y_pred = [x.chunk_id for x in query.results]
+
+    metrics = {label: metric_fn(y_true, y_pred) for label, metric_fn in evals.items()}
+    return {**metrics, "chunk_id": query.source.chunk_id}
+
+
 @app.command(help="Evaluate document retrieval")
-def from_json(
+def from_jsonl(
     input_file_path: str = typer.Option(
-        help="Json file to read in labels from",
+        help="Jsonl file to read in labels from",
     ),
     db_path: str = typer.Option(help="Your LanceDB path"),
-    table_name: str = typer.Option(help="Table to ingest data into"),
+    table_name: str = typer.Option(help="Table to read data from"),
 ):
     assert Path(
         input_file_path
     ).parent.exists(), f"The directory {Path(input_file_path).parent} does not exist."
     assert (
-        Path(input_file_path).suffix == ".json"
-    ), "The output file must have a .json extension."
+        Path(input_file_path).suffix == ".jsonl"
+    ), "The output file must have a .jsonl extension."
     assert Path(db_path).exists(), f"Database path {db_path} does not exist"
 
     with open(input_file_path, "r") as file:
-        data = json.load(file)
+        data = file.readlines()
         evaluation_data = [EvaluationDataItem(**json.loads(item)) for item in data]
 
     embedded_queries = run(embed_test_queries(evaluation_data))
-    flattened_queries = [item for sublist in embedded_queries for item in sublist]
 
-    query_results = run(fetch_relevant_results(flattened_queries, db_path, table_name))
+    query_results = run(fetch_relevant_results(embedded_queries, db_path, table_name))
 
-    for result in query_results:
-        y_pred = np.linspace(1, 0, len(result.results)).tolist()
+    evals = [score(result) for result in query_results]
 
-        y_true = [
-            0 if item.chunk_id != result.source.chunk_id else 1
-            for item in result.results
-        ]
-        ndcg = ndcg_score([y_true], [y_pred])
-
-        target_chunk_id = result.source.chunk_id
-        chunk_ids = [i.chunk_id for i in result.results]
-
-        mrr = (
-            0
-            if target_chunk_id not in chunk_ids
-            else 1 / (chunk_ids.index(target_chunk_id) + 1)
-        )
-
-        print(f"NDCG: {ndcg}, MRR: {mrr}")
+    df = pd.DataFrame(evals)
+    df = df.set_index("chunk_id")
+    console = Console()
+    console.print(df)
