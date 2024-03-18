@@ -1,4 +1,13 @@
-import asyncio
+
+import typer
+from pathlib import Path
+from rag_app.src.chunking import read_files, chunk_text
+from pydantic import BaseModel, Field
+from instructor import patch
+from openai import AsyncOpenAI
+from tqdm.asyncio import tqdm_asyncio as asyncio
+from asyncio import run
+from rag_app.models import TextChunk
 import json
 from pathlib import Path
 from typing import List
@@ -43,7 +52,7 @@ async def gather_questions(
     client = patch(AsyncOpenAI())
     coros = [generate_question_answer_pair(client, chunk) for chunk in chunks]
     output = []
-    for response in tqdm.asyncio.tqdm_asyncio.as_completed(coros):
+    for response in asyncio.as_completed(coros):
         questionAnswer, chunkData = await response
         assert isinstance(chunkData, TextChunk)
         assert isinstance(questionAnswer, QuestionAnswerPair)
@@ -83,8 +92,6 @@ def synthethic_questions(
     if max_questions > 0:
         chunks = chunks[:max_questions]
 
-    output = [
-        question.model_dump_json() for question in asyncio.run(gather_questions(chunks))
-    ]
+    output = run(gather_questions(chunks))
     with open(output_path, "w") as f:
         json.dump(output, f, indent=2)
