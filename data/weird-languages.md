@@ -1,3 +1,4 @@
+---
 title: How To Start Google
 date: 2021-08
 url: https://www.paulgraham.com/weird.html

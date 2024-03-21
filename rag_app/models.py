@@ -36,7 +36,7 @@ class DocumentMetadata(LanceModel):
         return v
 
 
-class Document(BaseModel):
+class Document(LanceModel):
     id: str
     content: str
     filename: str
