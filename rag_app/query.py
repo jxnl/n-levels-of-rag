@@ -1,4 +1,3 @@
-import typer
 import openai
 from rag_app.models import TextChunk
 from lancedb import connect
@@ -8,6 +7,7 @@ from rich.console import Console
 from rich.table import Table
 from rich import box
 import duckdb
+import typer
 
 app = typer.Typer()
 
@@ -42,23 +42,22 @@ def db(
         "SELECT doc_id, count(chunk_id) as count FROM sql_table GROUP BY doc_id"
     ).to_df()
 
-    doc_ids = df["doc_id"].to_list()
-    counts = df["count"].to_list()
-
-    doc_id_to_count = {id: chunk_count for id, chunk_count in zip(doc_ids, counts)}
+    doc_id_to_count = df.set_index("doc_id")["count"].to_dict()
 
     table = Table(title="Results", box=box.HEAVY, padding=(1, 2), show_lines=True)
-    table.add_column("Post Title", style="green", max_width=30)
+    table.add_column("Chunk Id", style="magenta")
     table.add_column("Content", style="magenta", max_width=120)
+    table.add_column("Post Title", style="green", max_width=30)
     table.add_column("Chunk Number", style="yellow")
     table.add_column("Publish Date", style="blue")
 
     for result in results:
-        chunk_number = f"{result.chunk_id}"
+        chunk_number = f"{result.chunk_number}/{doc_id_to_count[result.doc_id]}"
         table.add_row(
+            result.chunk_id,
             f"{result.post_title}({result.source})",
             result.text,
-            f"{chunk_number}/{doc_id_to_count[result.doc_id]}",
+            chunk_number,
             result.publish_date.strftime("%Y-%m"),
         )
     Console().print(table)
