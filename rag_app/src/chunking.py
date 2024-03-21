@@ -4,8 +4,10 @@ from datetime import datetime
 from unstructured.partition.text import partition_text
 from rag_app.models import Document
 from typing import Iterable
-
 from pathlib import Path
+from typing import List, TypeVar, Iterable
+
+T = TypeVar("T")
 
 
 def generate_string_hash(s: str):
@@ -25,10 +27,10 @@ def read_files(path: Path, file_suffix: str) -> Iterable[Document]:
         )
 
 
-def batch_chunks(chunks, batch_size=20):
+def batch_items(items: Iterable[T], batch_size: int = 20) -> Iterable[List[T]]:
     batch = []
-    for chunk in chunks:
-        batch.append(chunk)
+    for item in items:
+        batch.append(item)
         if len(batch) == batch_size:
             yield batch
             batch = []

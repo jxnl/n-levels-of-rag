@@ -1,40 +1,22 @@
 import typer
 from pathlib import Path
 from rag_app.src.chunking import read_files, chunk_text
-from pydantic import BaseModel, Field
 from instructor import patch
 from openai import AsyncOpenAI
 from tqdm.asyncio import tqdm_asyncio as asyncio
 from asyncio import run
-from rag_app.models import TextChunk
+from rag_app.models import TextChunk, EvaluationDataItem, QuestionAnswerPair
 import json
-from tenacity import retry, stop_after_attempt, wait_fixed
 from typing import List
+from tenacity import retry, stop_after_attempt, wait_fixed
+
 
 app = typer.Typer()
 
 
-class QuestionAnswerPair(BaseModel):
-    """
-    This model represents a pair of a question generated from a text chunk, its corresponding answer,
-    and the chain of thought leading to the answer. The chain of thought provides insight into how the answer
-    was derived from the question.
-    """
-
-    chain_of_thought: str = Field(
-        ..., description="The reasoning process leading to the answer."
-    )
-    question: str = Field(
-        ..., description="The generated question from the text chunk."
-    )
-    answer: str = Field(..., description="The answer to the generated question.")
-
-
-client = patch(AsyncOpenAI())
-
-
 @retry(stop=stop_after_attempt(5), wait=wait_fixed(30))
 async def generate_question_answer_pair(
+    client: AsyncOpenAI,
     chunk: TextChunk,
 ) -> tuple[QuestionAnswerPair, TextChunk]:
     res = await client.chat.completions.create(
@@ -54,20 +36,23 @@ async def generate_question_answer_pair(
     return (res, chunk)
 
 
-async def gather_questions(chunks) -> List[tuple[QuestionAnswerPair, TextChunk]]:
-    coros = [generate_question_answer_pair(chunk) for chunk in chunks]
+async def gather_questions(chunks: TextChunk) -> List[EvaluationDataItem]:
+    client = patch(AsyncOpenAI())
+    coros = [generate_question_answer_pair(client, chunk) for chunk in chunks]
     output = []
     for response in asyncio.as_completed(coros):
         questionAnswer, chunkData = await response
         assert isinstance(chunkData, TextChunk)
         assert isinstance(questionAnswer, QuestionAnswerPair)
         output.append(
-            {
-                "question": questionAnswer.question,
-                "answer": questionAnswer.answer,
-                "chunk": chunkData.text,
-                "chunk_id": chunkData.chunk_id,
-            }
+            EvaluationDataItem(
+                **{
+                    "question": questionAnswer.question,
+                    "answer": questionAnswer.answer,
+                    "chunk": chunkData.text,
+                    "chunk_id": chunkData.chunk_id,
+                }
+            )
         )
     return output
 
@@ -79,15 +64,15 @@ def synthethic_questions(
         help="max number of question/answer pairs to generate", default=-1
     ),
     output_path: str = typer.Option(
-        help="Json file to write output to", default="output.json"
+        help="Json file to write output to", default="output.jsonl"
     ),
 ):
     assert Path(
         output_path
     ).parent.exists(), f"The directory {Path(output_path).parent} does not exist."
     assert (
-        Path(output_path).suffix == ".json"
-    ), "The output file must have a .json extension."
+        Path(output_path).suffix == ".jsonl"
+    ), "The output file must have a .jsonl extension."
 
     file = read_files(Path(folder_path), file_suffix=".md")
     chunks = chunk_text(file)
@@ -95,6 +80,7 @@ def synthethic_questions(
     if max_questions > 0:
         chunks = chunks[:max_questions]
 
-    output = run(gather_questions(chunks))
+    questions = run(gather_questions(chunks))
     with open(output_path, "w") as f:
-        json.dump(output, f, indent=2)
+        for question in questions:
+            f.write(question.model_dump_json() + "\n")
