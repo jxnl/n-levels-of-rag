@@ -7,6 +7,11 @@ def calculate_mrr(chunk_id, predictions):
 
 
 def calculate_ndcg(chunk_id, predictions):
+    if len(predictions) == 0:
+        return "N/A"
+    if len(predictions) == 1:
+        return 1 if chunk_id in predictions else 0
+
     y_pred = np.linspace(1, 0, len(predictions)).tolist()
     y_true = [0 if item != chunk_id else 1 for item in predictions]
 

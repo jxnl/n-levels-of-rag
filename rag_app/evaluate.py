@@ -1,10 +1,12 @@
 import typer
 from pathlib import Path
 import json
-from rag_app.models import EvaluationDataItem
+import duckdb
+from rag_app.models import EvaluationDataItem, KeywordExtractionResponse
 from lancedb import connect
-from typing import List
+from typing import List, Union, Literal
 from openai import AsyncOpenAI
+import pandas as pd
 from pydantic import BaseModel
 from tqdm.asyncio import tqdm_asyncio as asyncio
 from rag_app.src.chunking import batch_items
@@ -19,6 +21,8 @@ from rag_app.src.metrics import (
 import pandas as pd
 from rich.console import Console
 from collections import OrderedDict
+import instructor
+from rich.table import Table
 
 app = typer.Typer()
 evals = OrderedDict()
@@ -36,8 +40,14 @@ class EmbeddedEvaluationItem(BaseModel):
     chunk_id: str
 
 
+class FullTextSearchEvaluationItem(BaseModel):
+    question: str
+    keywords: List[str]
+    chunk_id: str
+
+
 class QueryResult(BaseModel):
-    source: EmbeddedEvaluationItem
+    source: Union[EmbeddedEvaluationItem, FullTextSearchEvaluationItem]
     results: List[TextChunk]
 
 
@@ -83,12 +93,93 @@ async def fetch_relevant_results(
     return await asyncio.gather(*coros)
 
 
+async def generate_keywords_for_questions(
+    queries: List[EvaluationDataItem],
+) -> List[str]:
+    async def generate_query_keywords(query: EvaluationDataItem, client: AsyncOpenAI):
+        response: KeywordExtractionResponse = await client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            response_model=KeywordExtractionResponse,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Generate keywords relevant to the given question.",
+                },
+                {"role": "user", "content": query.question},
+            ],
+            max_retries=3,
+        )
+        return FullTextSearchEvaluationItem(
+            question=query.question, keywords=response.keywords, chunk_id=query.chunk_id
+        )
+
+    client = instructor.patch(AsyncOpenAI())
+    coros = [generate_query_keywords(query, client) for query in queries]
+    return await asyncio.gather(*coros)
+
+
+async def match_chunks_with_keywords(
+    queries: List[FullTextSearchEvaluationItem], db_path: str, table_name: str
+):
+    async def query_table(query: FullTextSearchEvaluationItem) -> pd.DataFrame:
+        keywords = query.keywords
+        keywords = [keyword.replace("'", "''") for keyword in keywords]
+        keyword_conditions = " +\n".join(
+            [
+                f"CASE WHEN regexp_matches(text, '(?i){keyword}') THEN 1 ELSE 0 END"
+                for keyword in keywords
+            ]
+        )
+        keyword_search = "|".join(keywords)
+        duckdb_query = f"""
+            SELECT 
+            *,
+            ({keyword_conditions}) AS num_keywords_matched
+        FROM 
+            chunks
+        WHERE 
+            regexp_matches(text, '(?i)({keyword_search})')
+            ORDER BY
+            num_keywords_matched DESC
+            LIMIT 25
+        """
+
+        db = connect(db_path)
+        chunk_table = db.open_table(table_name)
+        chunks = chunk_table.to_lance()
+        result = duckdb.query(duckdb_query).to_df()
+        return QueryResult(
+            source=query,
+            results=[
+                TextChunk(
+                    **{
+                        key: value
+                        for key, value in row.items()
+                        if key != "num_keywords_matched"
+                    }
+                )
+                for index, row in result.iterrows()
+            ],
+        )
+
+    coros = [query_table(query) for query in queries]
+    return await asyncio.gather(*coros)
+
+
 def score(query: QueryResult) -> dict[str, float]:
     y_true = query.source.chunk_id
     y_pred = [x.chunk_id for x in query.results]
 
     metrics = {label: metric_fn(y_true, y_pred) for label, metric_fn in evals.items()}
-    return {**metrics, "chunk_id": query.source.chunk_id}
+    metrics = {
+        label: round(value, 2) if value != "N/A" else value
+        for label, value in metrics.items()
+    }
+    return {
+        **metrics,
+        "chunk_id": query.source.chunk_id,
+        "retrieved_size": len(query.results),
+    }
 
 
 @app.command(help="Evaluate document retrieval")
@@ -98,6 +189,7 @@ def from_jsonl(
     ),
     db_path: str = typer.Option(help="Your LanceDB path"),
     table_name: str = typer.Option(help="Table to read data from"),
+    eval_mode=typer.Option(help="Query Method ( semantic or fts )", default="semantic"),
 ):
     assert Path(
         input_file_path
@@ -111,9 +203,21 @@ def from_jsonl(
         data = file.readlines()
         evaluation_data = [EvaluationDataItem(**json.loads(item)) for item in data]
 
-    embedded_queries = run(embed_test_queries(evaluation_data))
+    if eval_mode == "semantic":
+        embedded_queries = run(embed_test_queries(evaluation_data))
+        query_results = run(
+            fetch_relevant_results(embedded_queries, db_path, table_name)
+        )
+    elif eval_mode == "fts":
+        fts_queries = run(generate_keywords_for_questions(evaluation_data))
+        query_results = run(
+            match_chunks_with_keywords(fts_queries, db_path, table_name)
+        )
 
-    query_results = run(fetch_relevant_results(embedded_queries, db_path, table_name))
+    else:
+        raise ValueError(
+            "Invalid eval mode. Only semantic or fts is supported at the moment"
+        )
 
     evals = [score(result) for result in query_results]
 
@@ -121,3 +225,11 @@ def from_jsonl(
     df = df.set_index("chunk_id")
     console = Console()
     console.print(df)
+    print("")
+    numeric_df = df.apply(pd.to_numeric, errors="coerce")
+    mean_values_table = Table(title="Mean Values")
+    mean_values_table.add_column("Metric", style="cyan")
+    mean_values_table.add_column("Value", style="magenta")
+    for metric, value in numeric_df.mean().items():
+        mean_values_table.add_row(metric, str(value))
+    console.print(mean_values_table)

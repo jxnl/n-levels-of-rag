@@ -6,7 +6,6 @@ from openai import AsyncOpenAI
 from tqdm.asyncio import tqdm_asyncio as asyncio
 from asyncio import run
 from rag_app.models import TextChunk, EvaluationDataItem, QuestionAnswerPair
-import json
 from typing import List
 from tenacity import retry, stop_after_attempt, wait_fixed
 

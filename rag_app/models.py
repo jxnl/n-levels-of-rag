@@ -64,3 +64,12 @@ class EvaluationDataItem(BaseModel):
     answer: str
     chunk: str
     chunk_id: str
+
+
+class KeywordExtractionResponse(BaseModel):
+    keywords: List[str] = Field(
+        ...,
+        title="Keywords",
+        description="A list of at least 3 relevant keywords extracted from the question.",
+        min_length=3,
+    )
