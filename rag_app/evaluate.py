@@ -4,7 +4,7 @@ import json
 import duckdb
 from rag_app.models import EvaluationDataItem, KeywordExtractionResponse
 from lancedb import connect
-from typing import List, Union, Literal
+from typing import List, Union
 from openai import AsyncOpenAI
 import pandas as pd
 from pydantic import BaseModel
@@ -18,7 +18,6 @@ from rag_app.src.metrics import (
     calculate_ndcg,
     slice_predictions_decorator,
 )
-import pandas as pd
 from rich.console import Console
 from collections import OrderedDict
 import instructor
@@ -46,8 +45,15 @@ class FullTextSearchEvaluationItem(BaseModel):
     chunk_id: str
 
 
+class BM25SearchEvaluationItem(BaseModel):
+    question: str
+    chunk_id: str
+
+
 class QueryResult(BaseModel):
-    source: Union[EmbeddedEvaluationItem, FullTextSearchEvaluationItem]
+    source: Union[
+        EmbeddedEvaluationItem, FullTextSearchEvaluationItem, BM25SearchEvaluationItem
+    ]
     results: List[TextChunk]
 
 
@@ -98,19 +104,25 @@ async def generate_keywords_for_questions(
 ) -> List[str]:
     async def generate_query_keywords(query: EvaluationDataItem, client: AsyncOpenAI):
         response: KeywordExtractionResponse = await client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4-0613",
             response_model=KeywordExtractionResponse,
             messages=[
                 {
                     "role": "system",
-                    "content": "Generate keywords relevant to the given question.",
+                    "content": "You are a world class search engine. You are about to be given a question by a user. Make sure to generate as many possible keywords that are relevant to the question at hand which can help to identify relevant chunks of information to the user's query.",
                 },
-                {"role": "user", "content": query.question},
+                {
+                    "role": "assistant",
+                    "content": "Make sure to extract all possible keywords within the question itself first before generating new ones. Also expand all accronyms, identify synonyms and related topics.",
+                },
+                {"role": "user", "content": f"The question is {query.question}."},
             ],
-            max_retries=3,
+            max_retries=5,
         )
         return FullTextSearchEvaluationItem(
-            question=query.question, keywords=response.keywords, chunk_id=query.chunk_id
+            question=query.question,
+            keywords=response.keywords,
+            chunk_id=query.chunk_id,
         )
 
     client = instructor.patch(AsyncOpenAI())
@@ -166,6 +178,33 @@ async def match_chunks_with_keywords(
     return await asyncio.gather(*coros)
 
 
+def match_chunks_with_bm25(
+    db_path: str, table_name: str, queries: List[EvaluationDataItem]
+):
+    db = connect(db_path)
+    chunk_table = db.open_table(table_name)
+    try:
+        chunk_table.create_fts_index("text", replace=False)
+    except ValueError as e:
+        print("Index on the column 'text' has already been created.")
+
+    def query_table(query: EvaluationDataItem):
+        db = connect(db_path)
+        chunk_table = db.open_table(table_name)
+
+        retrieved_queries = (
+            chunk_table.search(query.question).limit(25).to_pydantic(TextChunk)
+        )
+        return QueryResult(
+            source=BM25SearchEvaluationItem(
+                question=query.question, chunk_id=query.chunk_id
+            ),
+            results=retrieved_queries,
+        )
+
+    return [query_table(query) for query in queries]
+
+
 def score(query: QueryResult) -> dict[str, float]:
     y_true = query.source.chunk_id
     y_pred = [x.chunk_id for x in query.results]
@@ -213,10 +252,11 @@ def from_jsonl(
         query_results = run(
             match_chunks_with_keywords(fts_queries, db_path, table_name)
         )
-
+    elif eval_mode == "bm25":
+        query_results = match_chunks_with_bm25(db_path, table_name, evaluation_data)
     else:
         raise ValueError(
-            "Invalid eval mode. Only semantic or fts is supported at the moment"
+            "Invalid eval mode. Only semantic, fts or bm25 is supported at the moment"
         )
 
     evals = [score(result) for result in query_results]
@@ -231,5 +271,5 @@ def from_jsonl(
     mean_values_table.add_column("Metric", style="cyan")
     mean_values_table.add_column("Value", style="magenta")
     for metric, value in numeric_df.mean().items():
-        mean_values_table.add_row(metric, str(value))
+        mean_values_table.add_row(metric, str(round(value, 2)))
     console.print(mean_values_table)
