@@ -1,5 +1,10 @@
 from sklearn.metrics import ndcg_score
 import numpy as np
+from typing import Callable, List
+
+
+def calculate_recall(chunk_id, predictions):
+    return 0 if chunk_id not in predictions else 1
 
 
 def calculate_mrr(chunk_id, predictions):
@@ -18,12 +23,8 @@ def calculate_ndcg(chunk_id, predictions):
     return ndcg_score([y_true], [y_pred])
 
 
-def slice_predictions_decorator(num_elements: int):
-    def decorator(func):
-        def wrapper(chunk_id, predictions):
-            sliced_predictions = predictions[:num_elements]
-            return func(chunk_id, sliced_predictions)
+def slice_predictions_at_k(k: int, score: Callable[[str, List[str]], float]):
+    def wrapper(chunk_id: str, predictions: List[str]):
+        return score(chunk_id, predictions[:k])
 
-        return wrapper
-
-    return decorator
+    return wrapper

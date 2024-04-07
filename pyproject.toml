@@ -16,9 +16,10 @@ python-frontmatter = "^1.1.0"
 duckdb="0.10.0"
 unstructured="^0.12.6"
 pandas="2.2.1"
-instructor="^0.6.4"
+instructor="^1.0.0"
 tenacity="^8.2.3"
 scikit-learn = "^1.3.2"
+anthropic="^0.23.1"
 
 
 [tool.poetry.dev-dependencies]
