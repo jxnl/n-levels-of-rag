@@ -1,7 +1,7 @@
 import typer
 from pathlib import Path
 from rag_app.src.chunking import read_files, chunk_text
-from instructor import patch
+import instructor
 from openai import AsyncOpenAI
 from tqdm.asyncio import tqdm_asyncio as asyncio
 from asyncio import run
@@ -15,9 +15,9 @@ app = typer.Typer()
 
 @retry(stop=stop_after_attempt(5), wait=wait_fixed(30))
 async def generate_question_answer_pair(
-    client: AsyncOpenAI,
     chunk: TextChunk,
 ) -> tuple[QuestionAnswerPair, TextChunk]:
+    client = instructor.from_openai(AsyncOpenAI())
     res = await client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
@@ -31,13 +31,13 @@ async def generate_question_answer_pair(
             },
         ],
         response_model=QuestionAnswerPair,
+        max_retries=3,
     )
     return (res, chunk)
 
 
 async def gather_questions(chunks: TextChunk) -> List[EvaluationDataItem]:
-    client = patch(AsyncOpenAI())
-    coros = [generate_question_answer_pair(client, chunk) for chunk in chunks]
+    coros = [generate_question_answer_pair(chunk) for chunk in chunks]
     output = []
     for response in asyncio.as_completed(coros):
         questionAnswer, chunkData = await response
