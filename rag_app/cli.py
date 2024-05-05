@@ -4,6 +4,13 @@ import rag_app.ingest as IngestApp
 import rag_app.generate_synthetic_question as GenerateApp
 import rag_app.evaluate as EvaluateApp
 
+import logfire
+
+logfire.configure()
+
+
+logfire.configure(pydantic_plugin=logfire.PydanticPlugin(record="all"))
+
 app = typer.Typer(
     name="Rag-App",
     help="A CLI for querying a local RAG application backed by LanceDB",
